@@ -3,25 +3,32 @@ import arcpy, time
 from arcpy.sa import *
 # arcpy.ImportToolbox(r'G:\Working\ArcMap Stuff\pkRasterHelper.tbx')
 
-# point_fc = r'L:\CoreData\NCIS\LITS_20200729\NCIS.gdb\Incidents_xy'
-point_fc = r'L:\CoreData\NCIS\LITS_20200729\NCIS.gdb\Residence_xy'
+# point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Incidents_xy'
+point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Residence_xy'
 # out_gdb = r'F:\BuildSuicideRasters\LITS20200729\Incidents_06_17.gdb'
-out_gdb = r'F:\BuildSuicideRasters\LITS20200729\Residences_06_17.gdb'
+out_gdb = r'F:\BuildSuicideRasters\LITS_20210112\Echoes\Residences_06_18.gdb'
 # name_base = "Incidents_Away"
 name_base = "Residences"
-# LogFile = r"F:\BuildSuicideRasters\LITS20200729\BatchSuicideBuild_Inc_06_17.txt"
-LogFile = r"F:\BuildSuicideRasters\LITS20200729\BatchSuicideBuild_Res_06_17_2.txt"
+# LogFile = r"F:\BuildSuicideRasters\LITS_20210112\BatchSuicideBuild_Inc_06_17.txt"
+LogFile = r"F:\BuildSuicideRasters\LITS_20210112\Echoes\BatchSuicideBuild_Res_06_18.txt"
+
+if not arcpy.Exists(out_gdb):
+    gdb_path, gdb_name = os.path.split(out_gdb)
+    if not os.path.exists(gdb_path):
+        os.makedirs(gdb_path)
+    arcpy.CreateFileGDB_management(gdb_path, gdb_name)
 
 txtFile = open(LogFile, "w")
 
 ## Python List uses square brackets
-# genders = ['P', 'M', 'F']
-genders = ['P']
 ## Python Dictionary uses curly brackets and key: values (including nested lists and dictionaries)
+
+# genders = {'P': 'Sex IN ("Male", "Female")', 'M': 'Sex = "Male"', 'F': 'Sex = "Female"'}
+genders = {'P': 'Sex IN ("Male", "Female")'}
+# genders = {'M': 'Sex = "Male"', 'F': 'Sex = "Female"'}
 scales = {'1k': 1000, '2k': 2000}
 # cellsizes = [50, 100, 200]
-cellsizes = [200, 100, 50]
-# ages = ['Adult', 'Elder', 'Mature', 'MidAge', 'Tot', 'Youth']
+cellsizes = [100]
 ages = {'Adult': 'Age > 24 AND Age < 45',
         'Elder': 'Age > 64',
         'Mature': 'Age > 44 AND Age < 65',
@@ -29,15 +36,12 @@ ages = {'Adult': 'Age > 24 AND Age < 45',
         'Youth': 'Age < 25',
         'Tot': 'Age > 0'}
 
-
+# PointFilter = "ExclusionCode NOT IN (1) AND " \
+#               "Incident_Year IN (2014, 2015, 2016, 2017, 2018)"
 PointFilter = "ExclusionCode NOT IN (1) AND " \
-              "Incident_Year IN (2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010, 2009, 2008, 2007, 2006)"
+              "Incident_Year IN (2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018)"
 
 arcpy.env.overwriteOutput = True
-
-if not arcpy.Exists(out_gdb):
-    gdb_path, gdb_name = os.path.split(out_gdb)
-    arcpy.CreateFileGDB_management(gdb_path, gdb_name)
 
 with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
 
@@ -50,7 +54,7 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
     arcpy.CheckOutExtension("ImageAnalyst")
 
     try:
-        for gender in genders:
+        for gender, genderFilt in genders():
             for scale, searchradius in scales.items():
                 for cellsize in cellsizes:
                     for age, ageRange in ages.items():
@@ -62,7 +66,7 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
                         # PopWeight = "{}_{}_GNAF_Weight".format(age, gender)
                         con_result = ""
                         kd_result = ""
-                        where_clause = "{} AND {}".format(PointFilter, ageRange)
+                        where_clause = "{} AND {} AND {}".format(PointFilter, ageRange, genderFilt)
                         OutputEvents = "{}\{}_{}_{}".format(out_gdb, name_base, age, gender)
                         PopWeight = 'NONE'
 

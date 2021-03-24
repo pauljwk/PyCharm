@@ -14,6 +14,8 @@ LogFile = r'L:\Work\Papers\NationalHotSpots\SuicideVsPopulation\Log_BatchSuicide
 # Destinations
 DiffRastersPath =  r'L:\Work\Papers\NationalHotSpots\SuicideVsPopulation'
 out_gdb = r'L:\Work\Papers\NationalHotSpots\SuicideVsPopulation\SuicideHotSpotBuilder.gdb'
+PubOuti = r"S:\SqlConnections\Nat_IncidentsAway_2006_2017.sde\LifeSpanHotSpots.NAT_INCIDENTSAWAY_2006_2017"
+PubOutr = r"S:\SqlConnections\Nat_Residences_2006_2017_1.sde\LifeSpanHotSpots.NAT_RESIDENCES_2006_2017"
 
 # Source Points
 IncPoints = r'L:\CoreData\NCIS\LITS_20200729\NCIS.gdb\incidents_xy'
@@ -313,7 +315,7 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
                                     logging.info("Relevant Events from: {0} are saved to: {1}".format(PointSet, OutEventsx))
 
                                     # Step 6c. Count the Collected Cluster Events into the HotZones Layer:
-                                    OutZonesx = "{}_{}".format(OutputKDv.replace("KDv_", "Ridge_HotZones_"), KDvLevel)
+                                    OutZonesx = "{}_{}_x".format(OutputKDv.replace("KDv_", "Ridge_HotZones_"), KDvLevel)
                                     arcpy.analysis.SummarizeWithin(in_polygons=OutZones,
                                                                    in_sum_features=OutEventsx,
                                                                    out_feature_class=OutZonesx,
@@ -334,18 +336,41 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
                                                                                    out_feature_class=HotSpots,
                                                                                    point_location="CENTROID")
 
-                                    HotBuffers = "{}_{}".format(OutputKDv.replace("KDv_", "Ridge_HotBuffers_"),
-                                                                KDvLevel)
-                                    logging.info("Building {} Buffers of {} HotSpots: {}".format(BufferSize, featCount,
+                                    # Step 6e. Generate some HotZone Buffers.
+                                    HotBuffers = "{}_{}".format(OutputKDv.replace("KDv_", "Ridge_HotZones_"), KDvLevel)
+                                    logging.info("Building {} Buffers of {} HotZones: {}".format("250 m", featCount,
                                                                                                  HotBuffers))
-                                    arcpy.analysis.Buffer(in_features=HotSpots,
+                                    arcpy.analysis.Buffer(in_features=OutZonesx,
                                                           out_feature_class=HotBuffers,
-                                                          buffer_distance_or_field=BufferSize,
+                                                          buffer_distance_or_field="250 Meters",
                                                           line_side="FULL",
                                                           line_end_type="ROUND",
                                                           dissolve_option="NONE",
                                                           dissolve_field=None,
                                                           method="PLANAR")
+
+                                    # Step 6f. Join HotSpot Centroids to SSC to get a name and some regional attributes associated directly with this hotspot
+                                    joinF = r"P:\SdeConnections\dot234_Publishing_SSC_2016.sde\Publishing.SSC_2016.SSC2016_Populated_SEIFA_ATS_etc"
+                                    if SType == "Incidents_Away":
+                                        PubOut = PubOuti
+                                    else:
+                                        PubOut = PubOutr
+
+                                    destF = "{}.{}_{}".format(PubOut,KDvAlias.replace("KDv_", "Ridge_HotSpots_"), KDvLevel)
+                                    logging.info(">>>>>>> Building SDE HotSpots: - {1}{2}From: {0}".format(HotSpots, destF, "\n"))
+                                    arcpy.analysis.SpatialJoin(target_features=HotSpots,
+                                                               join_features=joinF,
+                                                               out_feature_class=destF,
+                                                               join_operation="JOIN_ONE_TO_ONE",
+                                                               join_type="KEEP_ALL",
+                                                               match_option="CLOSEST",
+                                                               search_radius=None,
+                                                               distance_field_name='')
+
+                                    #  Clean up
+                                    if arcpy.Exists(OutZonesx):
+                                        logging.debug("Deleting: {}".format(OutZonesx))
+                                        arcpy.Delete_management(OutZonesx)
 
                                     if arcpy.Exists(ClusterLayer):
                                         logging.debug("Deleting: {}".format(ClusterLayer))
@@ -362,6 +387,10 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
                                     if arcpy.Exists(OutEventsx):
                                         logging.debug("Deleting: {}".format(OutEventsx))
                                         arcpy.Delete_management(OutEventsx)
+
+                                    if arcpy.Exists(PeakRegions):
+                                        logging.debug("Deleting: {}".format(PeakRegions))
+                                        arcpy.Delete_management(PeakRegions)
 
                                     break
 
@@ -390,6 +419,11 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
     finally:
 
         logging.info("{0}** Finished - All Themes: - HotSpots, HotEvents, HotBuffers, HotZones and the KDr's & KDv's can be found here:{0}{1}".format("\n", DiffRastersPath))
+
+        ClusterSumm = "{}\CLUSTER_ID_Summary".format(DiffRastersGDB)
+        if arcpy.Exists(ClusterSumm):
+            logging.debug("Deleting: {}".format(ClusterSumm))
+            arcpy.Delete_management(ClusterSumm)
 
         arcpy.CheckInExtension("Spatial")
         arcpy.CheckInExtension("ImageAnalyst")

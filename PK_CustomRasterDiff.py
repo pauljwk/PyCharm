@@ -7,9 +7,9 @@ import logging
 # topic_point_fc = arcpy.GetParameterAsText(0)        # Topic Points Input FC
 # ThemeFilter = arcpy.GetParameterAsText(1)      	  # SQL statement based on fields in topic_point_fc as per: "ExclusionCode NOT IN (1) AND Incident_Year IN (2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010, 2009) AND Incident_Residence_Match = 'No' "
 
-# pop_point_fc = arcpy.GetParameterAsText(2)          # Population Points Input FC pop_point_fc NB in this case it is preferable to have a Dedicated FC or at least an active DQ NB that an extent is used based on the Topic Points so you don't NEED to spatial contsrain the Pop Points.
-# PopFilter = arcpy.GetParameterAsText(3)      		  # Population Filter SQL statement based on fields in
-# PopWeight = arcpy.GetParameterAsText(4)			  # A field in pop_point_fc as per: Tot_P_GNAF_Weight or Adult_P_GNAF_Weight
+# base_point_fc = arcpy.GetParameterAsText(2)          # Population Points Input FC base_point_fc NB in this case it is preferable to have a Dedicated FC or at least an active DQ NB that an extent is used based on the Topic Points so you don't NEED to spatial contsrain the Pop Points.
+# baseFilter = arcpy.GetParameterAsText(3)      		  # Population Filter SQL statement based on fields in
+# baseWeight = arcpy.GetParameterAsText(4)			  # A field in base_point_fc as per: Tot_P_GNAF_Weight or Adult_P_GNAF_Weight
 
 # BufferSize = arcpy.GetParameterAsText(5)			  # '2 Kilometers'
 # SearchRadius = arcpy.GetParameter(6)			  	  # 2000
@@ -26,9 +26,9 @@ import logging
 topic_point_fc = r"L:\CoreData\NCIS\LITS_20200729\NCIS.gdb\Incidents_xy"
 ThemeFilter = "ExclusionCode <> 1 And Incident_Residence_Match = 'No' And NCIS_State IN ('NSW', 'ACT') And Incident_Year IN (2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010, 2009, 2008)"
 
-pop_point_fc = r"G:\BaseMaps\GNAF-AllGeoms-Population-ATS-2020\GNAF_SA1_AgeSex_Population.gdb\GNAF_2016_Residential_SA1AgeSex_PopWeights_main"
-PopFilter = ""
-PopWeight = "Tot_P_GNAF_Weight"
+base_point_fc = r"L:\CoreData\NCIS\LITS_20200729\NCIS.gdb\Residences_xy"
+baseFilter = ""
+baseWeight = "Tot_P_GNAF_Weight"
 
 BufferSize = '2 Kilometers'
 SearchRadius = 2000
@@ -146,17 +146,17 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
 			if not arcpy.Exists(RasterPop):
 				logging.info("Starting Raw KD - {}".format(RasterPop))
 
-				if len(PopFilter) > 0:
-					filtered_pop = arcpy.MakeFeatureLayer_management(in_features=pop_point_fc,
+				if len(baseFilter) > 0:
+					filtered_pop = arcpy.MakeFeatureLayer_management(in_features=base_point_fc,
 																	 out_layer='lyr',
-																	 where_clause=PopFilter)
+																	 where_clause=baseFilter)
 
 					arcpy.CopyFeatures_management(filtered_pop, PopPointSet)
 				else:
-					PopPointSet = pop_point_fc
+					PopPointSet = base_point_fc
 
 				kd_result = KernelDensity(in_features=PopPointSet,
-										  population_field=PopWeight,
+										  population_field=baseWeight,
 										  cell_size=CellSize,
 										  search_radius=SearchRadius,
 										  area_unit_scale_factor='SQUARE_KILOMETERS',

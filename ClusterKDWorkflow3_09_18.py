@@ -18,33 +18,35 @@ keep_working = False  # if False the working gdb will be deleted at the end of t
 
 # path to the gdb in which the LITS extracts are to be stored
 # lits_gdb = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses\LITS_20200729_08_17.gdb'
-lits_gdb = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses-2009-18\LITS_20200729_09_18.gdb'
+lits_gdb = r'L:\Work\KernelDensity\LITS_20210112\ClusterAnalyses-2009-18_NSW\LITS.gdb'
 
 # path to the gdb in which the cluster analysis results are to be stored.
 # cluster_analysis_gdb = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses\ClusterAnalyses_08_17.gdb'
-cluster_analysis_gdb = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses-2009-18\ClusterAnalyses_09_18.gdb'
+cluster_analysis_gdb = r'L:\Work\KernelDensity\LITS_20210112\ClusterAnalyses-2009-18_NSW\ClusterAnalyses.gdb'
 
 # path to the gdb in which the kd working layers are to be stored - note: this gdb may be deleted at the end of the run if
 # preserve working is set to false.
 # kd_working_gdb = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses\KD_working.gdb'
-kd_working_gdb = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses-2009-18\KD_working_09_18.gdb'
+kd_working_gdb = r'L:\Work\KernelDensity\LITS_20210112\ClusterAnalyses-2009-18_NSW\KD_working.gdb'
 
 # path to the gdb in which the kd results are to be stored
 # kd_analysis_gdb = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses\KD_Analyses_08_17.gdb'
-kd_analysis_gdb = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses-2009-18\KD_Analyses_09_18.gdb'
+kd_analysis_gdb = r'L:\Work\KernelDensity\LITS_20210112\ClusterAnalyses-2009-18_NSW\KD_Analyses.gdb'
 
 # The master incident points sets to be used.  It is assumed these follow standart LIFESPAN structure.
 # source_locations = {'Incidents': r"S:\CoreData\NCIS\LITS_20200729\NCIS.gdb\Incidents_xy",
 #                     'Residence': r"S:\CoreData\NCIS\LITS_20200729\NCIS.gdb\Residence_xy"}
 
-source_locations = {'Incidents': r"S:\CoreData\NCIS\LITS_20200729\NCIS.gdb\Incidents_xy",
-                    'Residence': r"S:\CoreData\NCIS\LITS_20200729\NCIS.gdb\Residence_xy"}
+source_locations = {'Incidents': r"S:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Incidents_xy",
+                    'Residence': r"S:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Residence_xy"}
 
 # The master filter that will be applied to source locations to select only the desired timeframes and non-exclusion items.
 # Using the IN filter option allows for non-sequential years to be included if desired.
 PeriodFilter = "ExclusionCode NOT IN (1) AND Incident_Year IN (2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010, 2009)"
 
 # The theme names and filters for the various analyses to be performed on the input points.
+# theme_filters = {'ALLAges_ALLIncidents': PeriodFilter + " AND Age > 5"}
+# theme_filters = {'ALLAges_ALLIncidents': PeriodFilter}
 theme_filters = {'ALLAges_ALLIncidents': PeriodFilter,
                  'ALLAges_AwayIncidents': PeriodFilter + " AND Incident_Residence_Match = 'No'",
                  'ALLAges_HomeIncidents': PeriodFilter + " AND Incident_Residence_Match = 'Yes'",
@@ -77,7 +79,7 @@ slices = 10
 # force the scratch to be local or at a known location.  This prevents the use of the anu user profile space, which can be slow.
 # If running multiple scripts in parallel, you may want to set the parameter to an empty string '' as this will allow the system to
 # decide on how many CPUs to use (usually 1)
-scratch_workspace = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses-2009-18\scratch.gdb'
+scratch_workspace = r'L:\Work\KernelDensity\LITS_20210112\ClusterAnalyses-2009-18_NSW\scratch.gdb'
 
 # Set the number of processes to be used:
 # - blank (empty)—Let each tool determine how many processes to use. This is the default.
@@ -86,12 +88,13 @@ scratch_workspace = r'L:\Work\KernelDensity\LITS_20200729\ClusterAnalyses-2009-1
 # - n%—Calculate the number of processes using the specified percentage: Number of processes = number of system cores * n / 100.
 # https://pro.arcgis.com/en/pro-app/tool-reference/environment-settings/parallel-processing-factor.htm
 # If running multiple script instances at once, you may want to use the blank ('') option.
-parallel_processing = '12'
+parallel_processing = ''
 
 # see note: https://pro.arcgis.com/en/pro-app/tool-reference/environment-settings/output-extent.htm
 # Australia: "12476759.2654 -5589605.4073 17630228.5082 -1036490.5379"
-# L:\CoreData\Sites\SitesExtents_pk.gdb\Aust_Extent_Main
-KDExtent = r'S:\CoreData\Sites\SitesExtents.gdb\Aust_Extent_Main_pk'
+
+# KDExtent = r'S:\CoreData\Sites\SitesExtents.gdb\Aust_Extent_Main_pk'
+KDExtent = r'S:\CoreData\Sites\SitesExtents.gdb\NSW_Extent_tight'
 
 # -----------------------------CODE-------------------------------------------
 
@@ -113,7 +116,7 @@ def execute_workflow():
     cluster_helper = ClustersHelper()
     cluster_helper.prepare_gdb()
     cluster_results = cluster_helper.create_clusters(lits_extracts)
-	
+
     arcpy.env.extent = KDExtent
     kd_helper = KDHelper()
     kd_helper.prepare_gdb()
@@ -248,37 +251,48 @@ class KDHelper(object):
             for theme_id, theme_result in source_result.items():
                 for kd_id, kd_params in kd_resolutions.items():
 
-                    search_radius = kd_params['search_radius']
-                    slice_features_name = '{}_{}_{}sliced'.format(source_id, theme_id, kd_id)
-                    slice_features_path = os.path.join(kd_working_gdb, slice_features_name)
-
-                    if arcpy.Exists(slice_features_path):
-                        if use_existing:
-                            print('{}: Using Existing Slice Features: {}'.format(datetime.datetime.now(), slice_features_path))
-                            theme_result[kd_id]['slices'] = slice_features_path
-                        else:
-                            raise RuntimeError('{}: use_existing is False and dataset exists: {}'.format(datetime.datetime.now(),
-                                                                                                         slice_features_path))
+                    # check to see whether the vectorised KDV is already built
+                    kdv_output = os.path.join(kd_analysis_gdb,'{}_{}_{}'.format(source_id, theme_id, kd_id))
+                    if arcpy.Exists(kdv_output):
+                        print('{}: Using Existing Vectorised KDv: {}'.format(datetime.datetime.now(),kdv_output))
                     else:
-                        clustered_points = theme_result[kd_id]['clusters']
 
-                        kd_raster_name = '{}_{}_{}'.format(source_id, theme_id, kd_id)
-                        cell_size = kd_params['cell_size']
-                        self._do_kd(clustered_points, kd_raster_name, search_radius, cell_size)
+                        search_radius = kd_params['search_radius']
+                        slice_features_name = '{}_{}_{}sliced'.format(source_id, theme_id, kd_id)
+                        slice_features_path = os.path.join(kd_working_gdb, slice_features_name)
 
-                        con_raster_name = '{}_{}_{}con'.format(source_id, theme_id, kd_id)
-                        self._do_con(con_raster_name)
+                        if arcpy.Exists(slice_features_path):
+                            if use_existing:
+                                print('{}: Using Existing Slice Features: {}'.format(datetime.datetime.now(), slice_features_path))
+                                theme_result[kd_id]['slices'] = slice_features_path
+                            else:
+                                raise RuntimeError('{}: use_existing is False and dataset exists: {}'.format(datetime.datetime.now(),
+                                                                                                             slice_features_path))
+                        else:
+                            clustered_points = theme_result[kd_id]['clusters']
 
-                        slice_raster_name = '{}_{}_{}slice'.format(source_id, theme_id, kd_id)
-                        self._do_slice(slice_raster_name)
+                            kd_raster_name = '{}_{}_{}'.format(source_id, theme_id, kd_id)
+                            cell_size = kd_params['cell_size']
+                            self._do_kd(clustered_points, kd_raster_name, search_radius, cell_size)
 
-                        print('Vectorising Raster: {}'.format(slice_features_name))
-                        self.slice_features = arcpy.RasterToPolygon_conversion(in_raster=self.slice_raster,
-                                                                               out_polygon_features=slice_features_path,
-                                                                               simplify="SIMPLIFY",
-                                                                               raster_field="Value")
+                            con_raster_name = '{}_{}_{}con'.format(source_id, theme_id, kd_id)
+                            self._do_con(con_raster_name)
 
-                        theme_result[kd_id]['slices'] = slice_features_path
+                            slice_raster_name = '{}_{}_{}slice'.format(source_id, theme_id, kd_id)
+                            self._do_slice(slice_raster_name)
+
+                            print('Vectorising Raster: {}'.format(slice_features_name))
+                            if self.slice_raster is not None:
+                                self.slice_features = arcpy.RasterToPolygon_conversion(in_raster=self.slice_raster,
+                                                                                        out_polygon_features=slice_features_path,
+                                                                                        simplify="SIMPLIFY",
+                                                                                        raster_field="Value")
+
+                            else:
+                                print('Null Raster Skipped: {}'.format(slice_features_name))
+                                slice_features_path = None
+
+                            theme_result[kd_id]['slices'] = slice_features_path
 
         if not keep_working:
             if self.kd_raster is not None:
@@ -368,14 +382,19 @@ class KDHelper(object):
             if self.slice_raster is not None:
                 arcpy.Delete_management(self.slice_raster)
 
-        print('{}: Slicing Raster: {}'.format(datetime.datetime.now(), slice_name))
-        self.slice_raster = Slice(in_raster=self.con_raster,
-                                  number_zones=slices,
-                                  slice_type='NATURAL_BREAKS')
+        if not (arcpy.sa.Raster(self.con_raster).maximum is None):
+            print('{}: Slicing Raster: {}'.format(datetime.datetime.now(), slice_name))
+            self.slice_raster = Slice(in_raster=self.con_raster,
+                                    number_zones=slices,
+                                    slice_type='NATURAL_BREAKS')
 
-        if keep_working:
-            self.slice_raster.save(slice_raster_path)
-
+            if keep_working:
+                self.slice_raster.save(slice_raster_path)
+        else:
+            if self.slice_raster is not None:
+                arcpy.Delete_management(self.slice_raster)
+                self.slice_raster = None
+            print('{}: No Cells to Slice: Slice Skipped'.format(datetime.datetime.now()))
         return
 
 class SliceProcessor(object):
@@ -392,28 +411,31 @@ class SliceProcessor(object):
                 for kd_id in kd_resolutions.keys():
                     slice_params = theme_result[kd_id]
 
-                    kd_result_name = '{}_{}_{}'.format(source_id, theme_id, kd_id)
-                    kd_result_path = get_existing_item(kd_analysis_gdb, kd_result_name)
-                    if kd_result_path:
-                        print('{}: Existing result found: {}'.format(datetime.datetime.now(), kd_result_path))
+                    if slice_params['slices'] is None:
+                        print('Skipping: {}_{}_{}'.format(source_id, theme_id, kd_id))
                     else:
-                        if self.clustered_points is not None:
-                            arcpy.Delete_management(self.clustered_points)
-                        cluster_source = slice_params['clusters']
-                        print('{}: Loading cluster points layer for {}_{}_{}'.format(datetime.datetime.now(), source_id, theme_id, kd_id))
-                        self.clustered_points = self._get_test_points(source=cluster_source,
-                                                                      out_workspace='in_memory',
-                                                                      out_name='pts',
-                                                                      where_clause='CLUSTER_ID > 0')
-                        self.dissolved = slice_params['slices']
+                        kd_result_name = '{}_{}_{}'.format(source_id, theme_id, kd_id)
+                        kd_result_path = get_existing_item(kd_analysis_gdb, kd_result_name)
+                        if kd_result_path:
+                            print('{}: Existing result found: {}'.format(datetime.datetime.now(), kd_result_path))
+                        else:
+                            if self.clustered_points is not None:
+                                arcpy.Delete_management(self.clustered_points)
+                            cluster_source = slice_params['clusters']
+                            print('{}: Loading cluster points layer for {}_{}_{}'.format(datetime.datetime.now(), source_id, theme_id, kd_id))
+                            self.clustered_points = self._get_test_points(source=cluster_source,
+                                                                          out_workspace='in_memory',
+                                                                          out_name='pts',
+                                                                          where_clause='CLUSTER_ID > 0')
+                            self.dissolved = slice_params['slices']
 
-                        for tier in range(slices, 0, -1):
-                            result = self._process_slice(source_id=source_id, theme_id=theme_id, kd_id=kd_id, tier=tier)
-                            self.dissolved = result
+                            for tier in range(slices, 0, -1):
+                                result = self._process_slice(source_id=source_id, theme_id=theme_id, kd_id=kd_id, tier=tier)
+                                self.dissolved = result
 
-                        kd_result_path = os.path.join(kd_working_gdb, kd_result_name)
-                        print('{}: Creating Analysis Result: {}'.format(datetime.datetime.now(), kd_result_path))
-                        arcpy.FeatureClassToFeatureClass_conversion(result, kd_analysis_gdb, kd_result_name)
+                            kd_result_path = os.path.join(kd_working_gdb, kd_result_name)
+                            print('{}: Creating Analysis Result: {}'.format(datetime.datetime.now(), kd_result_path))
+                            arcpy.FeatureClassToFeatureClass_conversion(result, kd_analysis_gdb, kd_result_name)
 
     @staticmethod
     def _get_test_points(source, out_workspace, out_name, where_clause=None):
@@ -436,6 +458,7 @@ class SliceProcessor(object):
         return result
 
     def _process_slice(self, source_id, theme_id, kd_id, tier):
+
         print('Processing Slice {0}'.format(tier))
 
         dissolve_name = '{}_{}_{}_{}dissolve'.format(source_id, theme_id, kd_id, tier)
@@ -457,7 +480,6 @@ class SliceProcessor(object):
             dissolve_path = os.path.join(kd_working_gdb, dissolve_name)
             print('{}: Dissolving gridcodes: {}'.format(datetime.datetime.now(), dissolve_path))
             return arcpy.Dissolve_management(tier_features, dissolve_path, 'gridcode', "", 'SINGLE_PART')
-
 
 class PolygonGridCodeAnalyzer2(object):
     def __init__(self, workspace):
@@ -677,6 +699,8 @@ def prepare_database(gdb_path):
             raise RuntimeError('GDB already exists: "{}"'.format(gdb_path))
 
     base_path, name = os.path.split(gdb_path)
+    if not os.path.exists(base_path):
+        os.makedirs(base_path)
     return arcpy.CreateFileGDB_management(base_path, name)
 
 
