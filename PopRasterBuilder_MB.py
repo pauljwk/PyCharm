@@ -3,48 +3,58 @@ import arcpy, time
 from arcpy.sa import *
 # arcpy.ImportToolbox(r'G:\Working\ArcMap Stuff\pkRasterHelper.tbx')
 
-# point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Incidents_xy'
-point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Residence_xy'
-# out_gdb = r'F:\BuildSuicideRasters\LITS20200729\NatHotSpots_06_18\Rasters_Incidents.gdb'
-out_gdb = r'F:\BuildSuicideRasters\LITS_20210112\NatHotSpots_06_18\Rasters_Residences.gdb'
-# name_base = "Incidents_Away"
-name_base = "Residences"
-
-gdb_path, gdb_name = os.path.split(out_gdb)
-if not arcpy.Exists(out_gdb):
-    if not os.path.exists(gdb_path):
-        os.makedirs(gdb_path)
-    arcpy.CreateFileGDB_management(gdb_path, gdb_name)
-
-LogFile = "{}\BatchSuicideBuild_Inc_06_18.txt".format(gdb_path)
+point_fc = r'G:\BaseMaps\GNAF-AllGeoms-Population-ATS-2020\GNAF_SA1_AgeSex_Population.gdb\ABS2016_ALLgeoms_MB_Centroids'
+out_gdb = r'F:\BuildPopRasters\PopRasters.gdb'
+out_name = "PopMB"
+LogFile = r"F:\BuildPopRasters\PopBuild_MB.txt"
 
 txtFile = open(LogFile, "w")
 
 ## Python List uses square brackets
+# genders = ['P', 'M', 'F']
+genders = ['P']
 ## Python Dictionary uses curly brackets and key: values (including nested lists and dictionaries)
-
-# genders = {'P': 'Sex IN ("Male", "Female")', 'M': 'Sex = "Male"', 'F': 'Sex = "Female"'}
-genders = {"P": "Sex IN ('Male', 'Female')"}
-# Sex IN ('Female', 'Male')
-# genders = {'M': 'Sex = "Male"', 'F': 'Sex = "Female"'}
 scales = {'1k': 1000, '2k': 2000}
 # cellsizes = [50, 100, 200]
 cellsizes = [100]
-ages = {'Adult': 'Age > 24 AND Age < 45',
-        'Elder': 'Age > 64',
-        'Mature': 'Age > 44 AND Age < 65',
-        'MidAge': 'Age > 24 AND Age < 65',
-        'Youth': 'Age < 25',
-        'Tot': 'Age > 0'}
-
-# PointFilter = "ExclusionCode NOT IN (1) AND " \
-#               "Incident_Year IN (2014, 2015, 2016, 2017, 2018)"
-PointFilter = "ExclusionCode NOT IN (1) AND " \
-              "Incident_Year IN (2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018)"
+# ages = ['Adult', 'Elder', 'Mature', 'MidAge', 'Tot', 'Youth']
+ages = ['Tot']
 
 arcpy.env.overwriteOutput = True
 
+if not arcpy.Exists(out_gdb):
+    gdb_path, gdb_name = os.path.split(out_gdb)
+    arcpy.CreateFileGDB_management(gdb_path, gdb_name)
+
 with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
+
+    KDextent_tight = "{}_ExtentTight".format(point_fc)
+    KDextent = "{}_Extent".format(point_fc)
+
+    if not arcpy.Exists(KDextent):
+        arcpy.AddMessage("Creating Extent: {0} - {1}{2}".format(point_fc, time.strftime("%X"), "\n"))
+        txtFile.write("Creating Extent: {0} - {1}{2}".format(point_fc, time.strftime("%X"), "\n"))
+
+        row_count = arcpy.GetCount_management(point_fc)[0]
+        arcpy.AddMessage("{0} Point Count = {1}{2}".format(point_fc, row_count, time.strftime("%X")))
+        txtFile.write("{0} Point Count = {1} - {2}{3}".format(point_fc, row_count, time.strftime("%X"), "\n"))
+
+        arcpy.management.MinimumBoundingGeometry(point_fc, KDextent_tight, "ENVELOPE", "ALL")
+
+        arcpy.analysis.Buffer(in_features=KDextent_tight,
+                              out_feature_class=KDextent,
+                              buffer_distance_or_field="2 Kilometers",
+                              line_side="FULL",
+                              line_end_type="ROUND",
+                              dissolve_option="NONE",
+                              dissolve_field=None,
+                              method="PLANAR")
+
+        if arcpy.Exists(KDextent_tight):
+            arcpy.Delete_management(KDextent_tight)
+
+        arcpy.AddMessage("Extent Built: {0} - {1}{2}{2}".format(KDextent, time.strftime("%X"), "\n"))
+        txtFile.write("Extent Built: {0} - {1}{2}{2}".format(KDextent, time.strftime("%X"), "\n"))
 
     # arcpy.env.outputCoordinateSystem = arcpy.SpatialReference(3857)
     # Parrallel processing doesn't ALWAYS help!
@@ -55,23 +65,18 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
     arcpy.CheckOutExtension("ImageAnalyst")
 
     try:
-        for gender, genderFilt in genders.items():
+        for gender in genders:
             for scale, searchradius in scales.items():
                 for cellsize in cellsizes:
-                    for age, ageRange in ages.items():
-                        OutputKDr = "{}\KDr_{}_{}_{}_{}_{}".format(out_gdb, name_base, age, gender, cellsize, scale)
-                        KDrAlias = "KDr_{}_{}_{}_{}_{}".format(name_base, age, gender, cellsize, scale)
-                        OutputCon = "{}\KDr_Con_{}_{}_{}_{}_{}".format(out_gdb, name_base, age, gender, cellsize, scale)
-                        OutputKDv = "{}\KDv_{}_{}_{}_{}_{}".format(out_gdb, name_base, age, gender, cellsize, scale)
-                        KDvAlias = "KDv_{}_{}_{}_{}_{}".format(name_base, age, gender, cellsize, scale)
-                        # PopWeight = "{}_{}_GNAF_Weight".format(age, gender)
+                    for age in ages:
+                        OutputKDr = "{}\KDr_{}_{}_{}_{}_{}".format(out_gdb, out_name, age, gender, cellsize, scale)
+                        KDrAlias = "KDr_{}_{}_{}_{}_{}".format(out_name, age, gender, cellsize, scale)
+                        OutputCon = "{}\KDr_Con_{}_{}_{}_{}_{}".format(out_gdb, out_name, age, gender, cellsize, scale)
+                        OutputKDv = "{}\KDv_{}_{}_{}_{}_{}".format(out_gdb, out_name, age, gender, cellsize, scale)
+                        KDvAlias = "KDv_{}_{}_{}_{}_{}".format(out_name, age, gender, cellsize, scale)
+                        PopWeight = "MB_PERSONS16"
                         con_result = ""
                         kd_result = ""
-                        where_clause = "{} AND {} AND {}".format(PointFilter, ageRange, genderFilt)
-                        OutputEvents = "{}\{}_{}_{}".format(out_gdb, name_base, age, gender)
-                        PopWeight = 'NONE'
-
-                        arcpy.env.extent = 'MAXOF'
 
                         arcpy.AddMessage("{7}Starting - Gender: {0} - Scale: {1} - CellSize: {2} - Age: {3}{7}"
                                          " - KD Raster: {4}{7}"
@@ -100,88 +105,23 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
                                                                 "\n",
                                                                 time.strftime("%X")))
 
-                        if not arcpy.Exists(OutputEvents):
-                            arcpy.AddMessage("Saving Points FC - {} - {}".format(OutputEvents,
-                                                                                 time.strftime("%X")))
-                            txtFile.write("Saving Points FC - {} - {}{}".format(OutputEvents,
-                                                                                time.strftime("%X"),
-                                                                                "\n"))
-
-                            filtered_points = arcpy.MakeFeatureLayer_management(in_features=point_fc,
-                                                                                out_layer='lyr',
-                                                                                where_clause=where_clause)
-                            arcpy.CopyFeatures_management(filtered_points,
-                                                          OutputEvents)
-                        else:
-                            arcpy.AddMessage("Using Existing Points FC: {} - {}".format(OutputEvents,
-                                                                                        time.strftime("%X")))
-                            txtFile.write("Using Existing Points FC: {} - {}{}".format(OutputEvents,
-                                                                                       time.strftime("%X"),
-                                                                                       "\n"))
-                            filtered_points = OutputEvents
-
-                        KDextent_tight = "{}_ExtentTight".format(OutputEvents)
-                        KDextent = "{}_Extent".format(OutputEvents)
-
-                        if not arcpy.Exists(KDextent):
-                            arcpy.AddMessage("Creating Extent: {} - {}".format(OutputEvents,
-                                                                                    time.strftime("%X")))
-                            txtFile.write("Creating Extent: {0} - {1}{2}".format(OutputEvents,
-                                                                                 time.strftime("%X"),
-                                                                                 "\n"))
-
-                            # row_count = arcpy.GetCount_management(OutputEvents)[0]
-
-                            arcpy.management.MinimumBoundingGeometry(OutputEvents, KDextent_tight, "ENVELOPE", "ALL")
-
-                            arcpy.analysis.Buffer(in_features=KDextent_tight,
-                                                  out_feature_class=KDextent,
-                                                  buffer_distance_or_field="2 Kilometers",
-                                                  line_side="FULL",
-                                                  line_end_type="ROUND",
-                                                  dissolve_option="NONE",
-                                                  dissolve_field=None,
-                                                  method="PLANAR")
-
-                            if arcpy.Exists(KDextent_tight):
-                                arcpy.Delete_management(KDextent_tight)
-
-                            arcpy.AddMessage("Extent Built: {0} - {1}{2}".format(KDextent,
-                                                                                    time.strftime("%X"),
-                                                                                    "\n"))
-                            txtFile.write("Extent Built: {0} - {1}{2}".format(KDextent,
-                                                                                 time.strftime("%X"),
-                                                                                 "\n"))
-
-                        row_count = arcpy.GetCount_management(OutputEvents)[0]
-                        ## For Testing use a small extent
-                        # KDextent = r'L:\CoreData\Sites\SitesExtents.gdb\ACT_Extent'
                         arcpy.env.extent = KDextent
 
                         if not arcpy.Exists(OutputKDr):
-                            arcpy.AddMessage("Building KD: {0} using {1} points. - {2}{3}".format(OutputKDr,
-                                                                                                  row_count,
-                                                                                                  time.strftime("%X"),
-                                                                                                  "\n"))
-                            txtFile.write("Building KD: {0} using {1} points. - {2}{3}".format(OutputKDr,
-                                                                                               row_count,
-                                                                                               time.strftime("%X"),
-                                                                                               "\n"))
+                            arcpy.AddMessage("Starting Raw KD - {} - {}".format(OutputKDr,
+                                                                                time.strftime("%X")))
+                            txtFile.write("Starting Raw KD - {} - {}{}".format(OutputKDr,
+                                                                               time.strftime("%X"),
+                                                                               "\n"))
 
-                            # arcpy.AddMessage("Starting Raw KD - {} - {}".format(OutputKDr,
-                            #                                                     time.strftime("%X")))
-                            # txtFile.write("Starting Raw KD - {} - {}{}".format(OutputKDr,
-                            #                                                    time.strftime("%X"),
-                            #                                                    "\n"))
-
-                            kd_result = arcpy.sa.KernelDensity(in_features=OutputEvents,
-                                                               population_field=PopWeight,
-                                                               cell_size=cellsize,
-                                                               search_radius=searchradius,
-                                                               area_unit_scale_factor='SQUARE_KILOMETERS',
-                                                               out_cell_values='DENSITIES',
-                                                               method='PLANAR',
-                                                               in_barriers=None)
+                            kd_result = KernelDensity(in_features=point_fc,
+                                                      population_field=PopWeight,
+                                                      cell_size=cellsize,
+                                                      search_radius=searchradius,
+                                                      area_unit_scale_factor='SQUARE_KILOMETERS',
+                                                      out_cell_values='DENSITIES',
+                                                      method='PLANAR',
+                                                      in_barriers=None)
 
                             arcpy.AddMessage("Finished Raw KD: {} - {}".format(OutputKDr,
                                                                                time.strftime("%X")))
@@ -194,11 +134,9 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
 
                             max_val = arcpy.GetRasterProperties_management(con_result, "MAXIMUM")
 
-                            arcpy.AddMessage("Finished Con KD - {} - Max Value: {} - {}".format(OutputCon,
-                                                                                                max_val,
+                            arcpy.AddMessage("Finished Con KD - {} - Max Value: {} - {}".format(OutputCon, max_val,
                                                                                                 time.strftime("%X")))
-                            txtFile.write("Finished Con - KD {} - Max Value: {} - {}{}".format(OutputCon,
-                                                                                               max_val,
+                            txtFile.write("Finished Con - KD {} - Max Value: {} - {}{}".format(OutputCon, max_val,
                                                                                                time.strftime("%X"),
                                                                                                "\n"))
 
@@ -253,15 +191,14 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
 
                             # int_result = "{}_Tmp".format(OutputKDr)
                             # arcpy.Int_3d(OutputKDr, int_result)
-                            int_result = arcpy.sa.Slice(OutputKDr, 21, "NATURAL_BREAKS", 0);
+                            int_result = arcpy.sa.Slice(OutputKDr, 21, "NATURAL_BREAKS", 0)
                             # int_result.save("{}_Tmp".format(OutputKDr))
                             # int_result.save(OutputKDr)
 
                             arcpy.AddMessage("Building KDv: {} - {}".format(OutputKDv,
                                                                             time.strftime("%X")))
                             txtFile.write("Building KDv: {} - {}{}".format(OutputKDv,
-                                                                           time.strftime("%X"),
-                                                                           "\n"))
+                                                                           time.strftime("%X"), "\n"))
 
                             kdv_result = arcpy.RasterToPolygon_conversion(in_raster = int_result,
                                                                           out_polygon_features = OutputKDv,
@@ -274,9 +211,11 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
 
                         # kdv_result.save(KDVector)
 
-                        ResidualCon = "{}{}KernelD_GNAF2".format(out_gdb, "\\")
+                        ResidualCon = "{}{}KernelD_GNAF2".format(out_gdb,
+                                                                 "\\")
                         if arcpy.Exists(ResidualCon):
-                            txtFile.write("Deleting: {}{}".format(ResidualCon, "\n"))
+                            txtFile.write("Deleting: {}{}".format(ResidualCon,
+                                                                  "\n"))
                             arcpy.Delete_management(ResidualCon)
 
                         ResidualCon = "{}{}Con_KernelD_1".format(out_gdb, "\\")

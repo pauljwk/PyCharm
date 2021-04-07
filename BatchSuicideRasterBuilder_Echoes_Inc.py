@@ -3,20 +3,20 @@ import arcpy, time
 from arcpy.sa import *
 # arcpy.ImportToolbox(r'G:\Working\ArcMap Stuff\pkRasterHelper.tbx')
 
-# point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Incidents_xy'
-point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Residence_xy'
-# out_gdb = r'F:\BuildSuicideRasters\LITS20200729\NatHotSpots_06_18\Rasters_Incidents.gdb'
-out_gdb = r'F:\BuildSuicideRasters\LITS_20210112\NatHotSpots_06_18\Rasters_Residences.gdb'
-# name_base = "Incidents_Away"
-name_base = "Residences"
+point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Incidents_xy'
+# point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Residence_xy'
+out_gdb = r'F:\BuildSuicideRasters\LITS_20210112\Echoes\Incidents_06_18.gdb'
+# out_gdb = r'F:\BuildSuicideRasters\LITS_20210112\Residences_06_17.gdb'
+name_base = "Incidents_Away"
+# name_base = "Residences"
+# LogFile = r"F:\BuildSuicideRasters\LITS_20210112\BatchSuicideBuild_Res_06_17.txt"
+LogFile = r"F:\BuildSuicideRasters\LITS_20210112\Echoes\BatchSuicideBuild_Inc_06_18.txt"
 
-gdb_path, gdb_name = os.path.split(out_gdb)
 if not arcpy.Exists(out_gdb):
+    gdb_path, gdb_name = os.path.split(out_gdb)
     if not os.path.exists(gdb_path):
         os.makedirs(gdb_path)
     arcpy.CreateFileGDB_management(gdb_path, gdb_name)
-
-LogFile = "{}\BatchSuicideBuild_Inc_06_18.txt".format(gdb_path)
 
 txtFile = open(LogFile, "w")
 
@@ -24,8 +24,7 @@ txtFile = open(LogFile, "w")
 ## Python Dictionary uses curly brackets and key: values (including nested lists and dictionaries)
 
 # genders = {'P': 'Sex IN ("Male", "Female")', 'M': 'Sex = "Male"', 'F': 'Sex = "Female"'}
-genders = {"P": "Sex IN ('Male', 'Female')"}
-# Sex IN ('Female', 'Male')
+genders = {'P': 'Sex IN ("Male", "Female")'}
 # genders = {'M': 'Sex = "Male"', 'F': 'Sex = "Female"'}
 scales = {'1k': 1000, '2k': 2000}
 # cellsizes = [50, 100, 200]
@@ -38,9 +37,12 @@ ages = {'Adult': 'Age > 24 AND Age < 45',
         'Tot': 'Age > 0'}
 
 # PointFilter = "ExclusionCode NOT IN (1) AND " \
-#               "Incident_Year IN (2014, 2015, 2016, 2017, 2018)"
+#               "Incident_Year IN (2014, 2015, 2016, 2017, 2018)" AND " \
+#               "Incident_Residence_Match = 'No'"
 PointFilter = "ExclusionCode NOT IN (1) AND " \
-              "Incident_Year IN (2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018)"
+              "Incident_Year IN (2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018) AND " \
+              "Incident_Residence_Match = 'No'"
+
 
 arcpy.env.overwriteOutput = True
 
@@ -55,7 +57,7 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
     arcpy.CheckOutExtension("ImageAnalyst")
 
     try:
-        for gender, genderFilt in genders.items():
+        for gender, genderFilt in genders():
             for scale, searchradius in scales.items():
                 for cellsize in cellsizes:
                     for age, ageRange in ages.items():
@@ -175,13 +177,13 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
                             #                                                    "\n"))
 
                             kd_result = arcpy.sa.KernelDensity(in_features=OutputEvents,
-                                                               population_field=PopWeight,
-                                                               cell_size=cellsize,
-                                                               search_radius=searchradius,
-                                                               area_unit_scale_factor='SQUARE_KILOMETERS',
-                                                               out_cell_values='DENSITIES',
-                                                               method='PLANAR',
-                                                               in_barriers=None)
+                            								   population_field=PopWeight,
+		                                                       cell_size=cellsize,
+           		                                               search_radius=searchradius,
+                  		                                       area_unit_scale_factor='SQUARE_KILOMETERS',
+                           			                           out_cell_values='DENSITIES',
+                                    		                   method='PLANAR',
+                                             		           in_barriers=None)
 
                             arcpy.AddMessage("Finished Raw KD: {} - {}".format(OutputKDr,
                                                                                time.strftime("%X")))

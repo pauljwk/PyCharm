@@ -5,18 +5,18 @@ from arcpy.sa import *
 
 point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Incidents_xy'
 # point_fc = r'L:\CoreData\NCIS\LITS_20210112\NCIS.gdb\Residence_xy'
-out_gdb = r'F:\BuildSuicideRasters\LITS_20210112\Echoes\Incidents_06_18.gdb'
-# out_gdb = r'F:\BuildSuicideRasters\LITS_20210112\Residences_06_17.gdb'
+out_gdb = r'F:\BuildSuicideRasters\LITS_20210112\NatHotSpots_06_18\Rasters_Incidents.gdb'
+# out_gdb = r'F:\BuildSuicideRasters\LITS_20210112\NatHotSpots_06_18\Rasters_Residences.gdb'
 name_base = "Incidents_Away"
 # name_base = "Residences"
-# LogFile = r"F:\BuildSuicideRasters\LITS_20210112\BatchSuicideBuild_Res_06_17.txt"
-LogFile = r"F:\BuildSuicideRasters\LITS_20210112\Echoes\BatchSuicideBuild_Inc_06_18.txt"
 
+gdb_path, gdb_name = os.path.split(out_gdb)
 if not arcpy.Exists(out_gdb):
-    gdb_path, gdb_name = os.path.split(out_gdb)
     if not os.path.exists(gdb_path):
         os.makedirs(gdb_path)
     arcpy.CreateFileGDB_management(gdb_path, gdb_name)
+
+LogFile = "{}\BatchSuicideBuild_Inc_06_18.txt".format(gdb_path)
 
 txtFile = open(LogFile, "w")
 
@@ -24,7 +24,7 @@ txtFile = open(LogFile, "w")
 ## Python Dictionary uses curly brackets and key: values (including nested lists and dictionaries)
 
 # genders = {'P': 'Sex IN ("Male", "Female")', 'M': 'Sex = "Male"', 'F': 'Sex = "Female"'}
-genders = {'P': 'Sex IN ("Male", "Female")'}
+genders = {"P": "Sex IN ('Male', 'Female')"}
 # genders = {'M': 'Sex = "Male"', 'F': 'Sex = "Female"'}
 scales = {'1k': 1000, '2k': 2000}
 # cellsizes = [50, 100, 200]
@@ -57,7 +57,7 @@ with arcpy.EnvManager(scratchWorkspace=out_gdb, workspace=out_gdb):
     arcpy.CheckOutExtension("ImageAnalyst")
 
     try:
-        for gender, genderFilt in genders():
+        for gender, genderFilt in genders.items():
             for scale, searchradius in scales.items():
                 for cellsize in cellsizes:
                     for age, ageRange in ages.items():
